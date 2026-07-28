@@ -38,6 +38,11 @@
   --r-lg: 26px;
   --r-xl: 34px;
   --r-pill: 999px;
+
+  --ease-standard: cubic-bezier(.2,.8,.2,1);
+  --ease-bounce: cubic-bezier(.34,1.56,.64,1);
+  --dur-fast: 0.15s;
+  --dur-med: 0.25s;
 }
 
 * { box-sizing: border-box; }
@@ -53,7 +58,8 @@ html, body {
 
 #root { max-width: 560px; margin: 0 auto; min-height: 100vh; position: relative; background: var(--md-bg); }
 
-button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; -webkit-tap-highlight-color: transparent; transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard); }
+button:active { transform: scale(0.96); }
 input { font-family: inherit; color: inherit; }
 a { color: inherit; }
 img { display: block; max-width: 100%; }
@@ -104,6 +110,19 @@ img { display: block; max-width: 100%; }
   letter-spacing: 0.2px;
 }
 
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+.account-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--md-primary-container); color: var(--md-on-primary-container);
+  flex-shrink: 0;
+  transition: transform var(--dur-fast) var(--ease-bounce), background var(--dur-med) var(--ease-standard);
+}
+
+.account-btn:active { transform: scale(0.9); }
+.account-btn svg { width: 18px; height: 18px; }
+
 /* ============================================================
    Bottom nav — M3 pill indicator
    ============================================================ */
@@ -132,13 +151,16 @@ img { display: block; max-width: 100%; }
   width: 52px; height: 30px;
   border-radius: var(--r-pill);
   display: flex; align-items: center; justify-content: center;
-  transition: background 0.25s cubic-bezier(.2,.8,.2,1);
+  transition: background var(--dur-med) var(--ease-standard);
 }
 
-.tab.active .tab-icon-wrap { background: var(--md-primary-container); }
+.tab.active .tab-icon-wrap { background: var(--md-primary-container); animation: tab-pop 0.35s var(--ease-bounce); }
 .tab.active { color: var(--md-on-surface); }
+.tab:active .tab-icon-wrap { transform: scale(0.92); }
 
-.tab svg { width: 20px; height: 20px; }
+.tab svg { width: 20px; height: 20px; transition: transform var(--dur-fast) var(--ease-bounce); }
+
+@keyframes tab-pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 
 .tab-count {
   position: absolute; top: -2px; right: 20%;
@@ -150,10 +172,15 @@ img { display: block; max-width: 100%; }
    Hero — expressive blob card
    ============================================================ */
 
-.hero-scroll { display: flex; gap: 14px; overflow-x: auto; padding: 0 20px 6px; margin-bottom: 30px; scroll-snap-type: x mandatory; }
+.hero-viewport { position: relative; padding: 0 20px 6px; margin-bottom: 30px; }
+
+.hero-track {
+  display: flex; touch-action: pan-y;
+  transition: transform 0.55s cubic-bezier(.22,.85,.32,1);
+}
 
 .hero {
-  position: relative; flex: 0 0 88%; scroll-snap-align: start;
+  position: relative; flex: 0 0 100%; width: 100%;
   border-radius: var(--r-xl); overflow: hidden; aspect-ratio: 3/4;
   background: var(--md-surface-2);
   box-shadow: 0 8px 24px rgba(179,57,31,0.14);
@@ -161,9 +188,16 @@ img { display: block; max-width: 100%; }
 
 .hero img { width: 100%; height: 100%; object-fit: cover; }
 
+.skel-hero {
+  background: linear-gradient(100deg, var(--md-surface-1) 30%, var(--md-surface-2) 50%, var(--md-surface-1) 70%);
+  background-size: 200% 100%; animation: shimmer 1.4s infinite;
+}
+
 .hero-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(33,26,23,0) 40%, rgba(20,10,7,0.88) 100%); }
 
-.hero-content { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px; }
+.hero-content { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px; animation: hero-content-in 0.5s var(--ease-standard); }
+
+@keyframes hero-content-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 .hero-eyebrow {
   font-family: var(--font-display); font-weight: 600; font-size: 12px;
@@ -176,6 +210,15 @@ img { display: block; max-width: 100%; }
 .hero-meta { font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,0.75); margin-bottom: 16px; display: flex; gap: 8px; align-items: center; }
 
 .hero-actions { display: flex; gap: 10px; }
+
+.hero-dots { display: flex; justify-content: center; gap: 6px; margin-top: 14px; }
+
+.hero-dot {
+  width: 6px; height: 6px; border-radius: var(--r-pill); background: var(--md-outline);
+  padding: 0; transition: width var(--dur-med) var(--ease-bounce), background var(--dur-med) var(--ease-standard);
+}
+
+.hero-dot.active { width: 20px; background: var(--md-primary); }
 
 /* ============================================================
    Section headers
@@ -209,7 +252,10 @@ img { display: block; max-width: 100%; }
   width: 122px; height: 176px; border-radius: var(--r-md); overflow: hidden;
   background: var(--md-surface-2); border: 1px solid var(--md-outline); position: relative;
   box-shadow: 0 2px 8px rgba(82,68,63,0.08);
+  transition: transform var(--dur-fast) var(--ease-standard);
 }
+
+.card-poster:active { transform: scale(0.96); }
 
 .card-poster img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -218,7 +264,10 @@ img { display: block; max-width: 100%; }
   background: rgba(255,255,255,0.88); backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  transition: transform var(--dur-fast) var(--ease-bounce);
 }
+
+.card-save:active { transform: scale(0.8); }
 
 .card-save svg { width: 13px; height: 13px; }
 
@@ -301,8 +350,10 @@ img { display: block; max-width: 100%; }
   padding: 9px 16px; border-radius: var(--r-pill);
   border: 1.5px solid var(--md-outline); color: var(--md-on-surface-variant);
   white-space: nowrap; flex-shrink: 0; background: var(--md-surface);
+  transition: background var(--dur-med) var(--ease-standard), border-color var(--dur-med) var(--ease-standard), color var(--dur-med) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
 }
 
+.chip:active { transform: scale(0.95); }
 .chip.active { border-color: var(--md-primary); color: var(--md-on-primary-container); background: var(--md-primary-container); }
 
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 10px; padding: 6px 20px 20px; }
@@ -320,18 +371,35 @@ img { display: block; max-width: 100%; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 .sheet {
-  position: fixed; inset: 0; z-index: 41; background: var(--md-bg); overflow-y: auto;
-  max-width: 560px; margin: 0 auto; animation: rise 0.3s cubic-bezier(.2,.9,.25,1.1);
+  position: fixed; left: 0; right: 0; bottom: 0; top: 30%; z-index: 41; background: var(--md-bg);
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  max-width: 560px; margin: 0 auto;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  box-shadow: 0 -8px 30px rgba(33,26,23,0.18);
+  animation: sheet-rise 0.32s cubic-bezier(.2,.9,.25,1.1);
+  touch-action: pan-y;
 }
 
 @keyframes rise { from { transform: translateY(28px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes sheet-rise { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.sheet-handle-wrap {
+  position: sticky; top: 0; z-index: 6; display: flex; justify-content: center; align-items: center;
+  padding: 10px 0 6px; background: linear-gradient(var(--md-bg) 78%, rgba(255,251,248,0));
+  cursor: grab;
+}
+
+.sheet-handle { width: 42px; height: 5px; border-radius: 3px; background: var(--md-outline-strong); transition: width var(--dur-fast) var(--ease-standard); }
+.sheet-handle-wrap:active .sheet-handle { width: 54px; }
 
 .sheet-close {
-  position: fixed; top: 16px; right: 16px; z-index: 43; width: 38px; height: 38px; border-radius: 50%;
+  position: absolute; top: 8px; right: 14px; z-index: 7; width: 34px; height: 34px; border-radius: 50%;
   background: rgba(33,26,23,0.55); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center;
 }
 
-.sheet-close svg { width: 16px; height: 16px; }
+.sheet-close svg { width: 15px; height: 15px; }
+.sheet-close-dark { background: var(--md-surface-2); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+.sheet-close-dark svg { color: var(--md-on-surface) !important; }
 
 .sheet-backdrop-img { width: 100%; aspect-ratio: 16/10; object-fit: cover; background: var(--md-surface-2); }
 
@@ -379,6 +447,51 @@ img { display: block; max-width: 100%; }
 .rate-star svg { width: 26px; height: 26px; }
 
 /* ============================================================
+   Account sheet
+   ============================================================ */
+
+.account-sheet { top: 30%; }
+.account-body { padding: 4px 20px 32px; }
+
+.account-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+
+.account-avatar {
+  width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+  background: var(--md-primary-container); color: var(--md-on-primary-container);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 22px;
+}
+
+.account-header-text { min-width: 0; }
+.account-name { font-family: var(--font-display); font-weight: 600; font-size: 19px; }
+.account-sub { font-size: 12.5px; color: var(--md-faint); font-weight: 500; margin-top: 2px; }
+
+.account-signin { margin-bottom: 22px; }
+
+.account-list { border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--md-outline); }
+
+.account-row {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 15px 16px;
+  background: var(--md-surface); border-bottom: 1px solid var(--md-outline);
+  font-size: 14px; font-weight: 600; text-align: left;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+
+.account-row:last-child { border-bottom: none; }
+.account-row:active { background: var(--md-surface-1); }
+
+.account-row-icon {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  background: var(--md-surface-2); display: flex; align-items: center; justify-content: center;
+}
+
+.account-row-icon svg { width: 15px; height: 15px; color: var(--md-on-surface-variant); }
+.account-row-label { flex: 1; }
+.account-row-chevron { color: var(--md-faint); font-size: 16px; }
+
+.account-footer { text-align: center; font-size: 11.5px; color: var(--md-faint); font-weight: 600; margin-top: 20px; }
+
+/* ============================================================
    Drawer (filters)
    ============================================================ */
 
@@ -420,10 +533,15 @@ img { display: block; max-width: 100%; }
   position: absolute; bottom: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%;
   background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center;
   box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  transition: background var(--dur-med) var(--ease-standard), transform var(--dur-fast) var(--ease-bounce);
 }
 
+.wl-mark:active { transform: scale(0.82); }
 .wl-mark.done { background: var(--md-secondary); }
 .wl-mark svg { width: 13px; height: 13px; }
+
+.card-watched-badge { animation: badge-pop 0.3s var(--ease-bounce); }
+@keyframes badge-pop { from { transform: scale(0); } to { transform: scale(1); } }
 
 /* ============================================================
    Loading skeletons
