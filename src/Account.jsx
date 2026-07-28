@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Icon } from './App.jsx'
+import { Icon } from './icons.jsx'
 
 /* ============================================================
    Account — placeholder sheet, opened from the top-right button.
