@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import AccountSheet from './Account.jsx'
 
 /* ============================================================
    TMDB API
@@ -52,7 +53,10 @@ const Icon = {
   starFilled: (p) => (<svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M12 2.5l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17.6l-6.1 3.4 1.5-6.8L2.2 9.5l6.9-.7L12 2.5z" /></svg>),
   clock: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" strokeLinecap="round" /></svg>),
   sort: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}><path d="M6 4v16M6 4l-3 3M6 4l3 3M18 20V4M18 20l-3-3M18 20l3-3" strokeLinecap="round" strokeLinejoin="round" /></svg>),
+  user: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}><circle cx="12" cy="8.5" r="3.6" /><path d="M4.5 20.2c1.7-3.6 4.8-5.4 7.5-5.4s5.8 1.8 7.5 5.4" strokeLinecap="round" /></svg>),
 }
+
+export { Icon, img, titleOf, yearOf, mediaTypeOf }
 
 /* ============================================================
    Watchlist persistence — now with status, rating, timestamps
@@ -225,6 +229,8 @@ function DetailSheet({ item, onClose, watchlist }) {
   const mediaType = mediaTypeOf(item)
   const [data, setData] = useState(null)
   const [showTrailer, setShowTrailer] = useState(false)
+  const sheetRef = useRef(null)
+  const drag = useRef({ startY: 0, dragging: false })
 
   useEffect(() => {
     let alive = true
@@ -234,6 +240,34 @@ function DetailSheet({ item, onClose, watchlist }) {
       .then((d) => { if (alive) setData(d) }).catch(() => {})
     return () => { alive = false }
   }, [item.id, mediaType])
+
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
+  const onHandleStart = (e) => {
+    drag.current = { startY: e.touches[0].clientY, dragging: true }
+    if (sheetRef.current) sheetRef.current.style.transition = 'none'
+  }
+  const onHandleMove = (e) => {
+    if (!drag.current.dragging || !sheetRef.current) return
+    const dy = e.touches[0].clientY - drag.current.startY
+    if (dy > 0) sheetRef.current.style.transform = `translateY(${dy}px)`
+  }
+  const onHandleEnd = (e) => {
+    if (!drag.current.dragging || !sheetRef.current) return
+    drag.current.dragging = false
+    const dy = e.changedTouches[0].clientY - drag.current.startY
+    sheetRef.current.style.transition = 'transform 0.28s cubic-bezier(.2,.9,.25,1.1)'
+    if (dy > 100) {
+      sheetRef.current.style.transform = 'translateY(100%)'
+      setTimeout(onClose, 200)
+    } else {
+      sheetRef.current.style.transform = 'translateY(0)'
+    }
+  }
 
   const trailer = useMemo(() => {
     const vids = data?.videos?.results || []
@@ -259,8 +293,16 @@ function DetailSheet({ item, onClose, watchlist }) {
   return (
     <>
       <div className="sheet-backdrop" onClick={onClose} />
-      <div className="sheet">
-        <button className="sheet-close" onClick={onClose} aria-label="Close"><Icon.x style={{ color: '#fff' }} /></button>
+      <div className="sheet" ref={sheetRef}>
+        <div
+          className="sheet-handle-wrap"
+          onTouchStart={onHandleStart}
+          onTouchMove={onHandleMove}
+          onTouchEnd={onHandleEnd}
+        >
+          <div className="sheet-handle" />
+          <button className="sheet-close" onClick={onClose} aria-label="Close"><Icon.x style={{ color: '#fff' }} /></button>
+        </div>
 
         {item.backdrop_path || data?.backdrop_path ? (
           <img className="sheet-backdrop-img" src={img(data?.backdrop_path || item.backdrop_path, 'w780')} alt="" />
@@ -361,6 +403,114 @@ function DetailSheet({ item, onClose, watchlist }) {
 }
 
 /* ============================================================
+   Hero carousel — auto-advances every 6s, loops, swipeable
+   ============================================================ */
+
+const HERO_INTERVAL = 6000
+
+function HeroCarousel({ items, loading, watchlist, onOpen }) {
+  const [index, setIndex] = useState(0)
+  const timerRef = useRef(null)
+  const touch = useRef({ x: 0, dragging: false })
+  const trackRef = useRef(null)
+
+  const count = items.length
+
+  const restart = useCallback(() => {
+    clearInterval(timerRef.current)
+    if (count > 1) {
+      timerRef.current = setInterval(() => setIndex((i) => (i + 1) % count), HERO_INTERVAL)
+    }
+  }, [count])
+
+  useEffect(() => {
+    if (loading || count === 0) return
+    restart()
+    return () => clearInterval(timerRef.current)
+  }, [loading, count, restart])
+
+  useEffect(() => {
+    if (index >= count && count > 0) setIndex(0)
+  }, [count, index])
+
+  const goTo = (i) => {
+    setIndex(((i % count) + count) % count)
+    restart()
+  }
+
+  const onTouchStart = (e) => { touch.current = { x: e.touches[0].clientX, dragging: true } }
+  const onTouchMove = (e) => {
+    if (!touch.current.dragging || !trackRef.current) return
+    const dx = e.touches[0].clientX - touch.current.x
+    trackRef.current.style.transition = 'none'
+    trackRef.current.style.transform = `translateX(calc(${-index * 100}% + ${dx}px))`
+  }
+  const onTouchEnd = (e) => {
+    if (!touch.current.dragging || !trackRef.current) return
+    const dx = e.changedTouches[0].clientX - touch.current.x
+    trackRef.current.style.transition = ''
+    trackRef.current.style.transform = ''
+    touch.current.dragging = false
+    if (dx < -48) goTo(index + 1)
+    else if (dx > 48) goTo(index - 1)
+    else restart()
+  }
+
+  if (loading || count === 0) {
+    return (
+      <div className="hero-viewport">
+        <div className="hero skel-hero" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="hero-viewport">
+      <div
+        className="hero-track"
+        ref={trackRef}
+        style={{ transform: `translateX(-${index * 100}%)` }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {items.map((h, i) => (
+          <div className="hero" key={`${mediaTypeOf(h)}-${h.id}`}>
+            <img src={img(h.backdrop_path || h.poster_path, 'w780')} alt="" />
+            <div className="hero-scrim" />
+            <div className="hero-content">
+              <span className="hero-eyebrow">No. {i + 1} this week</span>
+              <div className="hero-title">{titleOf(h)}</div>
+              <div className="hero-meta"><span>{yearOf(h)}</span><span className="dot">·</span><span>{mediaTypeOf(h) === 'tv' ? 'Series' : 'Film'}</span></div>
+              <div className="hero-actions">
+                <button className="btn btn-gold" onClick={() => onOpen(h)}><Icon.play /> View</button>
+                <button className="btn btn-ghost" onClick={() => watchlist.toggle(h)}>
+                  {watchlist.has(h.id, mediaTypeOf(h)) ? <Icon.bookmarkFilled /> : <Icon.bookmark />}
+                  {watchlist.has(h.id, mediaTypeOf(h)) ? 'Saved' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {count > 1 && (
+        <div className="hero-dots">
+          {items.map((_, i) => (
+            <button
+              key={i}
+              className={`hero-dot ${i === index ? 'active' : ''}`}
+              aria-label={`Show slide ${i + 1}`}
+              onClick={() => goTo(i)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ============================================================
    Discover tab — long, rich scroll for finding new things
    ============================================================ */
 
@@ -424,26 +574,7 @@ function DiscoverView({ watchlist, onOpen }) {
 
   return (
     <div>
-      <div className="hero-scroll">
-        {(loading ? [...Array(1)] : hero).map((h, i) => h ? (
-          <div className="hero" key={`${mediaTypeOf(h)}-${h.id}`}>
-            <img src={img(h.backdrop_path || h.poster_path, 'w780')} alt="" />
-            <div className="hero-scrim" />
-            <div className="hero-content">
-              <span className="hero-eyebrow">No. {i + 1} this week</span>
-              <div className="hero-title">{titleOf(h)}</div>
-              <div className="hero-meta"><span>{yearOf(h)}</span><span className="dot">·</span><span>{mediaTypeOf(h) === 'tv' ? 'Series' : 'Film'}</span></div>
-              <div className="hero-actions">
-                <button className="btn btn-gold" onClick={() => onOpen(h)}><Icon.play /> View</button>
-                <button className="btn btn-ghost" onClick={() => watchlist.toggle(h)}>
-                  {watchlist.has(h.id, mediaTypeOf(h)) ? <Icon.bookmarkFilled /> : <Icon.bookmark />}
-                  {watchlist.has(h.id, mediaTypeOf(h)) ? 'Saved' : 'Save'}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : <div className="hero" key="skel" />)}
-      </div>
+      <HeroCarousel items={hero} loading={loading} watchlist={watchlist} onOpen={onOpen} />
 
       <Top10Rail title="Top 10 films today" items={top10Movies} loading={loading} watchlist={watchlist} onOpen={onOpen} />
       <Top10Rail title="Top 10 series today" items={top10Tv} loading={loading} watchlist={watchlist} onOpen={onOpen} />
@@ -684,13 +815,19 @@ function WatchlistView({ watchlist, onOpen }) {
 export default function App() {
   const [tab, setTab] = useState('discover')
   const [selected, setSelected] = useState(null)
+  const [accountOpen, setAccountOpen] = useState(false)
   const watchlist = useWatchlist()
 
   return (
     <div className="app">
       <div className="topbar">
         <div className="brand">reel<span>.</span></div>
-        <div className="brand-mark">now showing</div>
+        <div className="topbar-right">
+          <div className="brand-mark">now showing</div>
+          <button className="account-btn" onClick={() => setAccountOpen(true)} aria-label="Account">
+            <Icon.user />
+          </button>
+        </div>
       </div>
 
       {tab === 'discover' && <DiscoverView watchlist={watchlist} onOpen={setSelected} />}
@@ -698,6 +835,7 @@ export default function App() {
       {tab === 'watchlist' && <WatchlistView watchlist={watchlist} onOpen={setSelected} />}
 
       {selected && <DetailSheet item={selected} onClose={() => setSelected(null)} watchlist={watchlist} />}
+      {accountOpen && <AccountSheet onClose={() => setAccountOpen(false)} />}
 
       <nav className="tabbar">
         <button className={`tab ${tab === 'discover' ? 'active' : ''}`} onClick={() => setTab('discover')}>
